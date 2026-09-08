@@ -3,9 +3,10 @@ const API_URL = '/api';
 
 // Global state
 let currentSessionId = null;
+let activeRequest = null;  // AbortController for the in-flight query, if any
 
 // DOM elements
-let chatMessages, chatInput, sendButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, newChatButton, totalCourses, courseTitles;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chatMessages = document.getElementById('chatMessages');
     chatInput = document.getElementById('chatInput');
     sendButton = document.getElementById('sendButton');
+    newChatButton = document.getElementById('newChatButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
     
@@ -28,8 +30,11 @@ function setupEventListeners() {
     chatInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendMessage();
     });
-    
-    
+
+    // New chat
+    newChatButton.addEventListener('click', createNewSession);
+
+
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
         button.addEventListener('click', (e) => {
@@ -59,6 +64,10 @@ async function sendMessage() {
     chatMessages.appendChild(loadingMessage);
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    // Track the request so starting a new chat can cancel it
+    const controller = new AbortController();
+    activeRequest = controller;
+
     try {
         const response = await fetch(`${API_URL}/query`, {
             method: 'POST',
@@ -68,7 +77,8 @@ async function sendMessage() {
             body: JSON.stringify({
                 query: query,
                 session_id: currentSessionId
-            })
+            }),
+            signal: controller.signal
         });
 
         if (!response.ok) throw new Error('Query failed');
@@ -85,13 +95,20 @@ async function sendMessage() {
         addMessage(data.answer, 'assistant', data.sources);
 
     } catch (error) {
+        // A new chat cancelled this request - it already reset the UI, so stay quiet
+        if (error.name === 'AbortError') return;
+
         // Replace loading message with error
         loadingMessage.remove();
         addMessage(`Error: ${error.message}`, 'assistant');
     } finally {
-        chatInput.disabled = false;
-        sendButton.disabled = false;
-        chatInput.focus();
+        // Only release the slot if a newer request hasn't already claimed it
+        if (activeRequest === controller) {
+            activeRequest = null;
+            chatInput.disabled = false;
+            sendButton.disabled = false;
+            chatInput.focus();
+        }
     }
 }
 
@@ -175,9 +192,36 @@ function escapeAttr(value) {
 // Removed removeMessage function - no longer needed since we handle loading differently
 
 async function createNewSession() {
+    // Cancel any in-flight query so its answer can't land in the new conversation
+    if (activeRequest) {
+        activeRequest.abort();
+        activeRequest = null;
+    }
+
+    // Drop the old id before any await, so a late response cannot re-adopt it.
+    // The next query mints a fresh session server-side (see app.py).
+    const previousSessionId = currentSessionId;
     currentSessionId = null;
+
+    // Reset the transcript and the input straight away - never wait on the network
     chatMessages.innerHTML = '';
     addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
+
+    chatInput.value = '';
+    chatInput.disabled = false;
+    sendButton.disabled = false;
+    chatInput.focus();
+
+    // Release the old session's history server-side - best effort
+    if (previousSessionId) {
+        try {
+            await fetch(`${API_URL}/session/${encodeURIComponent(previousSessionId)}`, {
+                method: 'DELETE'
+            });
+        } catch (error) {
+            console.error('Failed to release previous session:', error);
+        }
+    }
 }
 
 // Load course statistics
