@@ -125,7 +125,7 @@ function addMessage(content, type, sources = null, isWelcome = false) {
         html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
-                <div class="sources-content">${sources.join(', ')}</div>
+                <div class="sources-content">${sources.map(formatSource).join(', ')}</div>
             </details>
         `;
     }
@@ -137,11 +137,39 @@ function addMessage(content, type, sources = null, isWelcome = false) {
     return messageId;
 }
 
+// Render one citation as a link - the URL lives in the href only, never as visible text
+function formatSource(source) {
+    const text = escapeHtml(source.text);
+    const href = safeUrl(source.link);
+
+    if (!href) return `<span class="source-link-none">${text}</span>`;
+
+    return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+}
+
+// Only http(s) URLs belong in an href - escaping alone would still allow javascript:
+// Returns the normalized form, which percent-encodes quotes and other delimiters.
+function safeUrl(url) {
+    if (!url) return null;
+
+    try {
+        const parsed = new URL(url, window.location.origin);
+        return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : null;
+    } catch {
+        return null;
+    }
+}
+
 // Helper function to escape HTML for user messages
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// escapeHtml leaves quotes intact, which would break out of a double-quoted attribute
+function escapeAttr(value) {
+    return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
 // Removed removeMessage function - no longer needed since we handle loading differently
@@ -171,7 +199,7 @@ async function loadCourseStats() {
         if (courseTitles) {
             if (data.course_titles && data.course_titles.length > 0) {
                 courseTitles.innerHTML = data.course_titles
-                    .map(title => `<div class="course-title-item">${title}</div>`)
+                    .map(title => `<div class="course-title-item">${escapeHtml(title)}</div>`)
                     .join('');
             } else {
                 courseTitles.innerHTML = '<span class="no-courses">No courses available</span>';

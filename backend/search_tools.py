@@ -88,30 +88,43 @@ class CourseSearchTool(Tool):
     def _format_results(self, results: SearchResults) -> str:
         """Format search results with course and lesson context"""
         formatted = []
-        sources = []  # Track sources for the UI
-        
+        seen = []  # Unique (course_title, lesson_number) pairs in first-seen order
+
         for doc, meta in zip(results.documents, results.metadata):
             course_title = meta.get('course_title', 'unknown')
             lesson_num = meta.get('lesson_number')
-            
+
             # Build context header
             header = f"[{course_title}"
             if lesson_num is not None:
                 header += f" - Lesson {lesson_num}"
             header += "]"
-            
-            # Track source for the UI
-            source = course_title
-            if lesson_num is not None:
-                source += f" - Lesson {lesson_num}"
-            sources.append(source)
-            
+
+            # Track the source once per lesson - several chunks usually share one
+            key = (course_title, lesson_num)
+            if key not in seen:
+                seen.append(key)
+
             formatted.append(f"{header}\n{doc}")
-        
-        # Store sources for retrieval
-        self.last_sources = sources
-        
+
+        # Store sources for retrieval, resolving each link only once
+        self.last_sources = [self._build_source(title, num) for title, num in seen]
+
         return "\n\n".join(formatted)
+
+    def _build_source(self, course_title: str, lesson_num: Optional[int]) -> Dict[str, Any]:
+        """Build a UI citation, attaching the lesson link (or course link as fallback)"""
+        if lesson_num is not None:
+            return {
+                "text": f"{course_title} - Lesson {lesson_num}",
+                "link": self.store.get_lesson_link(course_title, lesson_num)
+            }
+
+        # Chunks from documents without lesson markers carry no lesson number
+        return {
+            "text": course_title,
+            "link": self.store.get_course_link(course_title)
+        }
 
 class ToolManager:
     """Manages available tools for the AI"""

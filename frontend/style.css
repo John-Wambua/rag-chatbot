@@ -22,6 +22,9 @@
     --focus-ring: rgba(37, 99, 235, 0.2);
     --welcome-bg: #1e3a5f;
     --welcome-border: #2563eb;
+    /* Lighter than --primary-color, which is too dark to read on --background */
+    --link-color: #60a5fa;
+    --link-hover: #93c5fd;
 }
 
 /* Base Styles */
@@ -242,6 +245,31 @@ header h1 {
 
 .sources-content {
     padding: 0 0.5rem 0.25rem 1.5rem;
+    color: var(--text-secondary);
+}
+
+/* Links inside citations and answers - the URL shows only on hover, via the browser */
+.sources-content a,
+.message-content a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+.sources-content a:hover,
+.message-content a:hover {
+    color: var(--link-hover);
+    text-decoration: underline;
+}
+
+.sources-content a:focus-visible,
+.message-content a:focus-visible {
+    outline: 2px solid var(--link-color);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* Citation with no link available - no clickable affordance */
+.source-link-none {
     color: var(--text-secondary);
 }
 
