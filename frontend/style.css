@@ -475,7 +475,8 @@ header h1 {
 
 /* Sidebar Headers */
 .stats-header,
-.suggested-header {
+.suggested-header,
+#newChatButton {
     font-size: 0.875rem;
     font-weight: 600;
     color: var(--text-secondary);
@@ -491,12 +492,14 @@ header h1 {
 }
 
 .stats-header:focus,
-.suggested-header:focus {
+.suggested-header:focus,
+#newChatButton:focus {
     color: var(--primary-color);
 }
 
 .stats-header:hover,
-.suggested-header:hover {
+.suggested-header:hover,
+#newChatButton:hover {
     color: var(--primary-color);
 }
 
@@ -637,33 +640,14 @@ details[open] .suggested-header::before {
     padding: 0.75rem 0;
 }
 
-/* New Chat button - .suggested-item's box with the section-header label treatment */
+/* New Chat button - shares the sidebar section-header treatment above */
 #newChatButton {
     width: 100%;
-    padding: 0.75rem 1rem;
-    background: var(--background);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-secondary);
+    background: none;
+    border: none;
     font-family: inherit;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-#newChatButton:hover {
-    background: var(--surface-hover);
-    border-color: var(--primary-color);
-    color: var(--primary-color);
-}
-
-#newChatButton:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px var(--focus-ring);
+    line-height: inherit;
+    text-align: left;
 }
 
 .suggested-item {
@@ -763,11 +747,6 @@ details[open] .suggested-header::before {
     }
     
     .suggested-item {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
-    }
-
-    #newChatButton {
         padding: 0.5rem 0.75rem;
         font-size: 0.8rem;
     }
