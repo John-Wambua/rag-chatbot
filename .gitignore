@@ -29,3 +29,5 @@ uploads/
 # OS
 .DS_Store
 Thumbs.db
+# pytest
+.pytest_cache/

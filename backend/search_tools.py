@@ -78,7 +78,7 @@ class CourseSearchTool(Tool):
             filter_info = ""
             if course_name:
                 filter_info += f" in course '{course_name}'"
-            if lesson_number:
+            if lesson_number is not None:
                 filter_info += f" in lesson {lesson_number}"
             return f"No relevant content found{filter_info}."
         
@@ -107,8 +107,13 @@ class CourseSearchTool(Tool):
 
             formatted.append(f"{header}\n{doc}")
 
-        # Store sources for retrieval, resolving each link only once
-        self.last_sources = [self._build_source(title, num) for title, num in seen]
+        # Accumulate, don't overwrite - Claude may search several times in one
+        # round, and every result it saw deserves a citation. ToolManager.
+        # reset_sources() clears these between rounds.
+        for title, num in seen:
+            source = self._build_source(title, num)
+            if source not in self.last_sources:
+                self.last_sources.append(source)
 
         return "\n\n".join(formatted)
 
@@ -170,8 +175,11 @@ class CourseOutlineTool(Tool):
         title = outline["title"]
         lessons = outline["lessons"]
 
-        # Cite the course page itself - the outline is course-level, not lesson-level
-        self.last_sources = [{"text": title, "link": outline["course_link"]}]
+        # Cite the course page itself - the outline is course-level, not
+        # lesson-level. Accumulate, for the same reason as CourseSearchTool.
+        source = {"text": title, "link": outline["course_link"]}
+        if source not in self.last_sources:
+            self.last_sources.append(source)
 
         if not lessons:
             return f"Course: {title}\nNo lessons are recorded for this course."
@@ -216,8 +224,16 @@ class ToolManager:
         """Execute a tool by name with given parameters"""
         if tool_name not in self.tools:
             return f"Tool '{tool_name}' not found"
-        
-        return self.tools[tool_name].execute(**kwargs)
+
+        # Claude authors the arguments, so a hallucinated or missing key must
+        # come back as text for it to read - not a TypeError that 500s the
+        # request. Same contract as a failed search.
+        try:
+            return self.tools[tool_name].execute(**kwargs)
+        except TypeError as e:
+            return f"Tool '{tool_name}' was called with invalid arguments: {e}"
+        except Exception as e:
+            return f"Tool '{tool_name}' failed: {e}"
     
     def get_last_sources(self) -> list:
         """Collect sources from every tool used in the last round, in registration order"""

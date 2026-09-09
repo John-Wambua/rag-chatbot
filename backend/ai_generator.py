@@ -32,6 +32,23 @@ All responses must be:
 Provide only the direct answer to what was asked.
 """
     
+    @staticmethod
+    def _text_from(response) -> str:
+        """Pull the answer out of a response's content blocks.
+
+        content is heterogeneous - a thinking block, or the tool_use block
+        itself, can precede the text - so block 0 is not necessarily the answer.
+        """
+        text = next(
+            (block.text for block in response.content
+             if getattr(block, "type", None) == "text"),
+            "",
+        )
+        if response.stop_reason == "max_tokens":
+            # Otherwise a cut-off answer is indistinguishable from a complete one
+            return f"{text}\n\n[Response truncated: the answer hit the length limit.]"
+        return text
+
     def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
@@ -82,12 +99,22 @@ Provide only the direct answer to what was asked.
         # Get response from Claude
         response = self.client.messages.create(**api_params)
         
-        # Handle tool execution if needed
-        if response.stop_reason == "tool_use" and tool_manager:
+        # Handle tool execution if needed. A "tool_use" stop_reason with no
+        # tool_use block, or with no manager to run it, has nothing to send
+        # back - a second call would end on an assistant turn and be rejected.
+        has_tool_calls = any(
+            getattr(block, "type", None) == "tool_use" for block in response.content
+        )
+        if response.stop_reason == "tool_use" and has_tool_calls:
+            if tool_manager is None:
+                return (
+                    "This question needs a course-material lookup, but no tools "
+                    "are available to answer it."
+                )
             return self._handle_tool_execution(response, api_params, tool_manager)
-        
+
         # Return direct response
-        return response.content[0].text
+        return self._text_from(response)
     
     def _handle_tool_execution(self, initial_response, base_params: Dict[str, Any], tool_manager):
         """
@@ -135,4 +162,4 @@ Provide only the direct answer to what was asked.
         
         # Get final response
         final_response = self.client.messages.create(**final_params)
-        return final_response.content[0].text
+        return self._text_from(final_response)

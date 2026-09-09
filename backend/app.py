@@ -7,7 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from config import config
 from rag_system import RAGSystem
@@ -75,8 +78,10 @@ async def query_documents(request: QueryRequest):
             sources=sources,
             session_id=session_id
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        # Log the cause; don't hand internals (paths, auth errors) to the client
+        logger.exception("Query failed")
+        raise HTTPException(status_code=500, detail="Failed to process query")
 
 @app.delete("/api/session/{session_id}")
 async def delete_session(session_id: str):
@@ -84,8 +89,9 @@ async def delete_session(session_id: str):
     try:
         rag_system.session_manager.delete_session(session_id)
         return {"status": "deleted", "session_id": session_id}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Session delete failed")
+        raise HTTPException(status_code=500, detail="Failed to delete session")
 
 @app.get("/api/courses", response_model=CourseStats)
 async def get_course_stats():
@@ -96,8 +102,9 @@ async def get_course_stats():
             total_courses=analytics["total_courses"],
             course_titles=analytics["course_titles"]
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Course analytics failed")
+        raise HTTPException(status_code=500, detail="Failed to load course statistics")
 
 @app.on_event("startup")
 async def startup_event():

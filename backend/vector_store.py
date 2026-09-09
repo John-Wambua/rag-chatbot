@@ -31,6 +31,16 @@ class SearchResults:
         """Check if results are empty"""
         return len(self.documents) == 0
 
+def _without_nulls(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Drop None values - ChromaDB only accepts str/int/float/bool metadata.
+
+    A transcript with no "Course Link:" header, or one with no lesson markers,
+    otherwise raises TypeError out of add() and the whole course is skipped.
+    An absent key reads back as None via metadata.get(), same as before.
+    """
+    return {key: value for key, value in metadata.items() if value is not None}
+
+
 class VectorStore:
     """Vector storage using ChromaDB for course content and metadata"""
     
@@ -149,13 +159,13 @@ class VectorStore:
         
         self.course_catalog.add(
             documents=[course_text],
-            metadatas=[{
+            metadatas=[_without_nulls({
                 "title": course.title,
                 "instructor": course.instructor,
                 "course_link": course.course_link,
                 "lessons_json": json.dumps(lessons_metadata),  # Serialize as JSON string
                 "lesson_count": len(course.lessons)
-            }],
+            })],
             ids=[course.title]
         )
     
@@ -165,11 +175,11 @@ class VectorStore:
             return
         
         documents = [chunk.content for chunk in chunks]
-        metadatas = [{
+        metadatas = [_without_nulls({
             "course_title": chunk.course_title,
             "lesson_number": chunk.lesson_number,
             "chunk_index": chunk.chunk_index
-        } for chunk in chunks]
+        }) for chunk in chunks]
         # Use title with chunk index for unique IDs
         ids = [f"{chunk.course_title.replace(' ', '_')}_{chunk.chunk_index}" for chunk in chunks]
         
