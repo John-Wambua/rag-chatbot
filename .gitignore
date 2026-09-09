@@ -31,3 +31,6 @@ uploads/
 Thumbs.db
 # pytest
 .pytest_cache/
+
+# Node (only used by npx for Prettier)
+node_modules/

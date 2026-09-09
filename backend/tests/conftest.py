@@ -37,9 +37,9 @@ if str(BACKEND) not in sys.path:
     sys.path.insert(0, str(BACKEND))
 
 from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
+
 from models import Course, CourseChunk, Lesson
 from vector_store import SearchResults
-
 
 # --------------------------------------------------------------------------
 # Stub embedder for the integration tier

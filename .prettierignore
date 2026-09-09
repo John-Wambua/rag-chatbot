@@ -1,0 +1,8 @@
+# Generated / vendored
+uv.lock
+node_modules/
+.venv/
+backend/chroma_db/
+
+# Course transcripts are fixed-format source data
+docs/

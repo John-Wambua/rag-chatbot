@@ -3,119 +3,116 @@ const API_URL = '/api';
 
 // Global state
 let currentSessionId = null;
-let activeRequest = null;  // AbortController for the in-flight query, if any
+let activeRequest = null; // AbortController for the in-flight query, if any
 
 // DOM elements
 let chatMessages, chatInput, sendButton, newChatButton, totalCourses, courseTitles;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Get DOM elements after page loads
-    chatMessages = document.getElementById('chatMessages');
-    chatInput = document.getElementById('chatInput');
-    sendButton = document.getElementById('sendButton');
-    newChatButton = document.getElementById('newChatButton');
-    totalCourses = document.getElementById('totalCourses');
-    courseTitles = document.getElementById('courseTitles');
-    
-    setupEventListeners();
-    createNewSession();
-    loadCourseStats();
+  // Get DOM elements after page loads
+  chatMessages = document.getElementById('chatMessages');
+  chatInput = document.getElementById('chatInput');
+  sendButton = document.getElementById('sendButton');
+  newChatButton = document.getElementById('newChatButton');
+  totalCourses = document.getElementById('totalCourses');
+  courseTitles = document.getElementById('courseTitles');
+
+  setupEventListeners();
+  createNewSession();
+  loadCourseStats();
 });
 
 // Event Listeners
 function setupEventListeners() {
-    // Chat functionality
-    sendButton.addEventListener('click', sendMessage);
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
+  // Chat functionality
+  sendButton.addEventListener('click', sendMessage);
+  chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+  });
+
+  // New chat
+  newChatButton.addEventListener('click', createNewSession);
+
+  // Suggested questions
+  document.querySelectorAll('.suggested-item').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      const question = e.target.getAttribute('data-question');
+      chatInput.value = question;
+      sendMessage();
     });
-
-    // New chat
-    newChatButton.addEventListener('click', createNewSession);
-
-
-    // Suggested questions
-    document.querySelectorAll('.suggested-item').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const question = e.target.getAttribute('data-question');
-            chatInput.value = question;
-            sendMessage();
-        });
-    });
+  });
 }
-
 
 // Chat Functions
 async function sendMessage() {
-    const query = chatInput.value.trim();
-    if (!query) return;
+  const query = chatInput.value.trim();
+  if (!query) return;
 
-    // Disable input
-    chatInput.value = '';
-    chatInput.disabled = true;
-    sendButton.disabled = true;
+  // Disable input
+  chatInput.value = '';
+  chatInput.disabled = true;
+  sendButton.disabled = true;
 
-    // Add user message
-    addMessage(query, 'user');
+  // Add user message
+  addMessage(query, 'user');
 
-    // Add loading message - create a unique container for it
-    const loadingMessage = createLoadingMessage();
-    chatMessages.appendChild(loadingMessage);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+  // Add loading message - create a unique container for it
+  const loadingMessage = createLoadingMessage();
+  chatMessages.appendChild(loadingMessage);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    // Track the request so starting a new chat can cancel it
-    const controller = new AbortController();
-    activeRequest = controller;
+  // Track the request so starting a new chat can cancel it
+  const controller = new AbortController();
+  activeRequest = controller;
 
-    try {
-        const response = await fetch(`${API_URL}/query`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                query: query,
-                session_id: currentSessionId
-            }),
-            signal: controller.signal
-        });
+  try {
+    const response = await fetch(`${API_URL}/query`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: query,
+        session_id: currentSessionId,
+      }),
+      signal: controller.signal,
+    });
 
-        if (!response.ok) throw new Error('Query failed');
+    if (!response.ok) throw new Error('Query failed');
 
-        const data = await response.json();
-        
-        // Update session ID if new
-        if (!currentSessionId) {
-            currentSessionId = data.session_id;
-        }
+    const data = await response.json();
 
-        // Replace loading message with response
-        loadingMessage.remove();
-        addMessage(data.answer, 'assistant', data.sources);
-
-    } catch (error) {
-        // A new chat cancelled this request - it already reset the UI, so stay quiet
-        if (error.name === 'AbortError') return;
-
-        // Replace loading message with error
-        loadingMessage.remove();
-        addMessage(`Error: ${error.message}`, 'assistant');
-    } finally {
-        // Only release the slot if a newer request hasn't already claimed it
-        if (activeRequest === controller) {
-            activeRequest = null;
-            chatInput.disabled = false;
-            sendButton.disabled = false;
-            chatInput.focus();
-        }
+    // Update session ID if new
+    if (!currentSessionId) {
+      currentSessionId = data.session_id;
     }
+
+    // Replace loading message with response
+    loadingMessage.remove();
+    addMessage(data.answer, 'assistant', data.sources);
+  } catch (error) {
+    // A new chat cancelled this request - it already reset the UI, so stay quiet
+    if (error.name === 'AbortError') return;
+
+    // Replace loading message with error
+    loadingMessage.remove();
+    addMessage(`Error: ${error.message}`, 'assistant');
+  } finally {
+    // Only release the slot if a newer request hasn't already claimed it
+    if (activeRequest === controller) {
+      activeRequest = null;
+      chatInput.disabled = false;
+      sendButton.disabled = false;
+      chatInput.focus();
+    }
+  }
 }
 
 function createLoadingMessage() {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'message assistant';
-    messageDiv.innerHTML = `
+  const messageDiv = document.createElement('div');
+  messageDiv.className = 'message assistant';
+  messageDiv.innerHTML = `
         <div class="message-content">
             <div class="loading">
                 <span></span>
@@ -124,140 +121,144 @@ function createLoadingMessage() {
             </div>
         </div>
     `;
-    return messageDiv;
+  return messageDiv;
 }
 
 function addMessage(content, type, sources = null, isWelcome = false) {
-    const messageId = Date.now();
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}${isWelcome ? ' welcome-message' : ''}`;
-    messageDiv.id = `message-${messageId}`;
-    
-    // Convert markdown to HTML for assistant messages
-    const displayContent = type === 'assistant' ? marked.parse(content) : escapeHtml(content);
-    
-    let html = `<div class="message-content">${displayContent}</div>`;
-    
-    if (sources && sources.length > 0) {
-        html += `
+  const messageId = Date.now();
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `message ${type}${isWelcome ? ' welcome-message' : ''}`;
+  messageDiv.id = `message-${messageId}`;
+
+  // Convert markdown to HTML for assistant messages
+  const displayContent = type === 'assistant' ? marked.parse(content) : escapeHtml(content);
+
+  let html = `<div class="message-content">${displayContent}</div>`;
+
+  if (sources && sources.length > 0) {
+    html += `
             <details class="sources-collapsible">
                 <summary class="sources-header">Sources</summary>
                 <div class="sources-content">${sources.map(formatSource).join(', ')}</div>
             </details>
         `;
-    }
-    
-    messageDiv.innerHTML = html;
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    
-    return messageId;
+  }
+
+  messageDiv.innerHTML = html;
+  chatMessages.appendChild(messageDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  return messageId;
 }
 
 // Render one citation as a link - the URL lives in the href only, never as visible text
 function formatSource(source) {
-    const text = escapeHtml(source.text);
-    const href = safeUrl(source.link);
+  const text = escapeHtml(source.text);
+  const href = safeUrl(source.link);
 
-    if (!href) return `<span class="source-link-none">${text}</span>`;
+  if (!href) return `<span class="source-link-none">${text}</span>`;
 
-    return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+  return `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 }
 
 // Only http(s) URLs belong in an href - escaping alone would still allow javascript:
 // Returns the normalized form, which percent-encodes quotes and other delimiters.
 function safeUrl(url) {
-    if (!url) return null;
+  if (!url) return null;
 
-    try {
-        const parsed = new URL(url, window.location.origin);
-        return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? parsed.href : null;
-    } catch {
-        return null;
-    }
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+  } catch {
+    return null;
+  }
 }
 
 // Helper function to escape HTML for user messages
 function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // escapeHtml leaves quotes intact, which would break out of a double-quoted attribute
 function escapeAttr(value) {
-    return escapeHtml(value).replace(/"/g, '&quot;');
+  return escapeHtml(value).replace(/"/g, '&quot;');
 }
 
 // Removed removeMessage function - no longer needed since we handle loading differently
 
 async function createNewSession() {
-    // Cancel any in-flight query so its answer can't land in the new conversation
-    if (activeRequest) {
-        activeRequest.abort();
-        activeRequest = null;
+  // Cancel any in-flight query so its answer can't land in the new conversation
+  if (activeRequest) {
+    activeRequest.abort();
+    activeRequest = null;
+  }
+
+  // Drop the old id before any await, so a late response cannot re-adopt it.
+  // The next query mints a fresh session server-side (see app.py).
+  const previousSessionId = currentSessionId;
+  currentSessionId = null;
+
+  // Reset the transcript and the input straight away - never wait on the network
+  chatMessages.innerHTML = '';
+  addMessage(
+    'Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?',
+    'assistant',
+    null,
+    true
+  );
+
+  chatInput.value = '';
+  chatInput.disabled = false;
+  sendButton.disabled = false;
+  chatInput.focus();
+
+  // Release the old session's history server-side - best effort
+  if (previousSessionId) {
+    try {
+      await fetch(`${API_URL}/session/${encodeURIComponent(previousSessionId)}`, {
+        method: 'DELETE',
+      });
+    } catch (error) {
+      console.error('Failed to release previous session:', error);
     }
-
-    // Drop the old id before any await, so a late response cannot re-adopt it.
-    // The next query mints a fresh session server-side (see app.py).
-    const previousSessionId = currentSessionId;
-    currentSessionId = null;
-
-    // Reset the transcript and the input straight away - never wait on the network
-    chatMessages.innerHTML = '';
-    addMessage('Welcome to the Course Materials Assistant! I can help you with questions about courses, lessons and specific content. What would you like to know?', 'assistant', null, true);
-
-    chatInput.value = '';
-    chatInput.disabled = false;
-    sendButton.disabled = false;
-    chatInput.focus();
-
-    // Release the old session's history server-side - best effort
-    if (previousSessionId) {
-        try {
-            await fetch(`${API_URL}/session/${encodeURIComponent(previousSessionId)}`, {
-                method: 'DELETE'
-            });
-        } catch (error) {
-            console.error('Failed to release previous session:', error);
-        }
-    }
+  }
 }
 
 // Load course statistics
 async function loadCourseStats() {
-    try {
-        console.log('Loading course stats...');
-        const response = await fetch(`${API_URL}/courses`);
-        if (!response.ok) throw new Error('Failed to load course stats');
-        
-        const data = await response.json();
-        console.log('Course data received:', data);
-        
-        // Update stats in UI
-        if (totalCourses) {
-            totalCourses.textContent = data.total_courses;
-        }
-        
-        // Update course titles
-        if (courseTitles) {
-            if (data.course_titles && data.course_titles.length > 0) {
-                courseTitles.innerHTML = data.course_titles
-                    .map(title => `<div class="course-title-item">${escapeHtml(title)}</div>`)
-                    .join('');
-            } else {
-                courseTitles.innerHTML = '<span class="no-courses">No courses available</span>';
-            }
-        }
-        
-    } catch (error) {
-        console.error('Error loading course stats:', error);
-        // Set default values on error
-        if (totalCourses) {
-            totalCourses.textContent = '0';
-        }
-        if (courseTitles) {
-            courseTitles.innerHTML = '<span class="error">Failed to load courses</span>';
-        }
+  try {
+    console.log('Loading course stats...');
+    const response = await fetch(`${API_URL}/courses`);
+    if (!response.ok) throw new Error('Failed to load course stats');
+
+    const data = await response.json();
+    console.log('Course data received:', data);
+
+    // Update stats in UI
+    if (totalCourses) {
+      totalCourses.textContent = data.total_courses;
     }
+
+    // Update course titles
+    if (courseTitles) {
+      if (data.course_titles && data.course_titles.length > 0) {
+        courseTitles.innerHTML = data.course_titles
+          .map((title) => `<div class="course-title-item">${escapeHtml(title)}</div>`)
+          .join('');
+      } else {
+        courseTitles.innerHTML = '<span class="no-courses">No courses available</span>';
+      }
+    }
+  } catch (error) {
+    console.error('Error loading course stats:', error);
+    // Set default values on error
+    if (totalCourses) {
+      totalCourses.textContent = '0';
+    }
+    if (courseTitles) {
+      courseTitles.innerHTML = '<span class="error">Failed to load courses</span>';
+    }
+  }
 }

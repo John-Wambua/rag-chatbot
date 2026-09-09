@@ -64,10 +64,14 @@ def test_tool_internal_exception_returns_text():
 
 
 def test_get_last_sources_merges_search_and_outline_tools(tool_manager, fake_store):
-    fake_store.register_course(COURSE, course_link="https://example.test/cu",
-                               lessons=[(0, "Introduction", "https://example.test/cu/l0")])
-    fake_store.register_course(MCP, course_link="https://example.test/mcp",
-                               lessons=[(0, "Why MCP", None)])
+    fake_store.register_course(
+        COURSE,
+        course_link="https://example.test/cu",
+        lessons=[(0, "Introduction", "https://example.test/cu/l0")],
+    )
+    fake_store.register_course(
+        MCP, course_link="https://example.test/mcp", lessons=[(0, "Why MCP", None)]
+    )
     fake_store.queue_hits(("a", {"course_title": COURSE, "lesson_number": 0}))
 
     tool_manager.execute_tool("search_course_content", query="q")
@@ -78,8 +82,9 @@ def test_get_last_sources_merges_search_and_outline_tools(tool_manager, fake_sto
 
 
 def test_reset_sources_clears_every_tool(tool_manager, fake_store):
-    fake_store.register_course(MCP, course_link="https://example.test/mcp",
-                               lessons=[(0, "Why MCP", None)])
+    fake_store.register_course(
+        MCP, course_link="https://example.test/mcp", lessons=[(0, "Why MCP", None)]
+    )
     tool_manager.execute_tool("get_course_outline", course_title="MCP")
     assert tool_manager.get_last_sources()
 

@@ -7,7 +7,6 @@ these tests assert filtering and plumbing, never relevance quality.
 """
 
 import pytest
-
 from conftest import COMPUTER_USE, MCP, UNTITLED, StubEmbeddingFunction
 
 pytestmark = pytest.mark.integration
@@ -17,7 +16,9 @@ def test_config_limits_are_sane():
     """MAX_RESULTS flows straight into n_results with no validation."""
     from config import config
 
-    assert config.MAX_RESULTS > 0, "n_results=0 makes every content query return nothing"
+    assert (
+        config.MAX_RESULTS > 0
+    ), "n_results=0 makes every content query return nothing"
     assert config.CHUNK_OVERLAP < config.CHUNK_SIZE
 
 
@@ -86,7 +87,9 @@ def test_course_missing_link_and_instructor_can_be_ingested(real_store):
     from models import Course
 
     real_store.add_course_metadata(
-        Course(title="Header-less Course", course_link=None, instructor=None, lessons=[])
+        Course(
+            title="Header-less Course", course_link=None, instructor=None, lessons=[]
+        )
     )
     assert real_store.get_course_count() == 1
     assert real_store.get_course_link("Header-less Course") is None
@@ -100,8 +103,14 @@ def test_chunk_without_a_lesson_number_can_be_ingested(real_store):
         Course(title="Prose Only", course_link="https://example.test/p", instructor="A")
     )
     real_store.add_course_content(
-        [CourseChunk(content="just prose, no lessons", course_title="Prose Only",
-                     lesson_number=None, chunk_index=0)]
+        [
+            CourseChunk(
+                content="just prose, no lessons",
+                course_title="Prose Only",
+                lesson_number=None,
+                chunk_index=0,
+            )
+        ]
     )
     results = real_store.search("prose", course_name="Prose Only")
     assert results.documents == ["just prose, no lessons"]
@@ -113,7 +122,9 @@ def test_outline_of_unresolvable_course_on_empty_catalog(real_store):
 
 
 def test_links_and_catalog_counts(populated_store):
-    assert populated_store.get_lesson_link(COMPUTER_USE, 0) == "https://example.test/cu/l0"
+    assert (
+        populated_store.get_lesson_link(COMPUTER_USE, 0) == "https://example.test/cu/l0"
+    )
     assert populated_store.get_lesson_link(MCP, 2) is None  # seeded as null
     assert populated_store.get_course_link(UNTITLED) is None
     assert populated_store.get_course_count() == 3

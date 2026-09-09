@@ -16,7 +16,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "black>=26.5.1",
     "httpx>=0.28.1",
+    "isort>=9.0.1",
     "pytest>=9.1.1",
 ]
 
@@ -27,3 +29,29 @@ addopts = "-q --strict-markers"
 markers = [
     "integration: drives a real ChromaDB in tmp_path with a stub embedder",
 ]
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+extend-exclude = '''
+/(
+  | \.venv
+  | chroma_db
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = [
+    "ai_generator",
+    "app",
+    "config",
+    "document_processor",
+    "models",
+    "rag_system",
+    "search_tools",
+    "session_manager",
+    "vector_store",
+]
+skip_gitignore = true
