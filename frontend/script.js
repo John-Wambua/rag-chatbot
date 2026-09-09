@@ -6,7 +6,7 @@ let currentSessionId = null;
 let activeRequest = null;  // AbortController for the in-flight query, if any
 
 // DOM elements
-let chatMessages, chatInput, sendButton, newChatButton, totalCourses, courseTitles;
+let chatMessages, chatInput, sendButton, newChatButton, totalCourses, courseTitles, themeToggle;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,7 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     newChatButton = document.getElementById('newChatButton');
     totalCourses = document.getElementById('totalCourses');
     courseTitles = document.getElementById('courseTitles');
-    
+    themeToggle = document.getElementById('themeToggle');
+
+    setupTheme();
     setupEventListeners();
     createNewSession();
     loadCourseStats();
@@ -34,6 +36,9 @@ function setupEventListeners() {
     // New chat
     newChatButton.addEventListener('click', createNewSession);
 
+    // Theme toggle - a native <button>, so Enter and Space already fire click
+    themeToggle.addEventListener('click', toggleTheme);
+
 
     // Suggested questions
     document.querySelectorAll('.suggested-item').forEach(button => {
@@ -43,6 +48,63 @@ function setupEventListeners() {
             sendMessage();
         });
     });
+}
+
+
+// Theme Functions
+// The active theme lives in the data-theme attribute on <html>; index.html sets it
+// before first paint, so here we only sync the button and react to changes.
+function setupTheme() {
+    updateThemeButton(getCurrentTheme());
+
+    // Follow the OS preference while the user has not made an explicit choice
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+        if (readStoredTheme()) return;
+        applyTheme(e.matches ? 'light' : 'dark');
+    });
+}
+
+function toggleTheme() {
+    const next = getCurrentTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    storeTheme(next);
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeButton(theme);
+}
+
+// The button shows the theme it switches TO, so the label names that theme
+function updateThemeButton(theme) {
+    if (!themeToggle) return;
+
+    const target = theme === 'light' ? 'dark' : 'light';
+    const label = `Switch to ${target} theme`;
+    themeToggle.setAttribute('aria-label', label);
+    themeToggle.setAttribute('title', label);
+}
+
+function getCurrentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+
+// localStorage throws in private-mode Safari and when site data is blocked
+function readStoredTheme() {
+    try {
+        const stored = localStorage.getItem('theme');
+        return stored === 'light' || stored === 'dark' ? stored : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function storeTheme(theme) {
+    try {
+        localStorage.setItem('theme', theme);
+    } catch (error) {
+        // Preference just will not survive a reload - not worth surfacing
+    }
 }
 
 
