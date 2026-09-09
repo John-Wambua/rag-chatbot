@@ -5,7 +5,6 @@ the shape of the request is under test, not just the returned string.
 """
 
 import pytest
-
 from conftest import FakeMessage, TextBlock, ThinkingBlock, ToolUseBlock
 
 TOOL_DEFS = [
@@ -105,7 +104,11 @@ def test_tool_use_executes_tool_and_returns_final_text(make_generator):
     manager = RecordingToolManager("search results here")
     gen, client = make_generator(
         FakeMessage(
-            [ToolUseBlock("search_course_content", {"query": "mcp", "lesson_number": 0})],
+            [
+                ToolUseBlock(
+                    "search_course_content", {"query": "mcp", "lesson_number": 0}
+                )
+            ],
             stop_reason="tool_use",
         ),
         FakeMessage([TextBlock("MCP is a protocol.")]),
@@ -123,8 +126,10 @@ def test_tool_use_executes_tool_and_returns_final_text(make_generator):
 def test_second_call_omits_tools_and_reuses_system(make_generator):
     """One round of tool use is intentional: round 2 must not carry tools."""
     gen, client = make_generator(
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "x"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "x"})],
+            stop_reason="tool_use",
+        ),
         FakeMessage([TextBlock("done")]),
     )
     gen.generate_response("q", tools=TOOL_DEFS, tool_manager=RecordingToolManager())
@@ -156,7 +161,9 @@ def test_all_tool_use_blocks_in_one_round_are_executed(make_generator):
     gen, client = make_generator(
         FakeMessage(
             [
-                ToolUseBlock("get_course_outline", {"course_title": "MCP"}, id="toolu_01"),
+                ToolUseBlock(
+                    "get_course_outline", {"course_title": "MCP"}, id="toolu_01"
+                ),
                 ToolUseBlock("search_course_content", {"query": "x"}, id="toolu_02"),
             ],
             stop_reason="tool_use",
@@ -188,19 +195,25 @@ def test_thinking_block_before_text_on_first_call(make_generator):
 
 def test_thinking_block_before_text_on_final_call(make_generator):
     gen, _ = make_generator(
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "x"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "x"})],
+            stop_reason="tool_use",
+        ),
         FakeMessage([ThinkingBlock(), TextBlock("final answer")]),
     )
-    answer = gen.generate_response("q", tools=TOOL_DEFS, tool_manager=RecordingToolManager())
+    answer = gen.generate_response(
+        "q", tools=TOOL_DEFS, tool_manager=RecordingToolManager()
+    )
     assert answer == "final answer"
 
 
 def test_tool_use_without_tool_manager_does_not_crash(make_generator):
     """Passing tools without a manager is a caller error, not an AttributeError."""
     gen, _ = make_generator(
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "x"})],
-                    stop_reason="tool_use")
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "x"})],
+            stop_reason="tool_use",
+        )
     )
     result = gen.generate_response("q", tools=TOOL_DEFS, tool_manager=None)
     assert isinstance(result, str)
@@ -211,8 +224,12 @@ def test_tool_use_stop_reason_with_no_tool_use_blocks_makes_one_call(make_genera
 
     The real API rejects a request whose last message is from the assistant.
     """
-    gen, client = make_generator(FakeMessage([TextBlock("hmm")], stop_reason="tool_use"))
-    answer = gen.generate_response("q", tools=TOOL_DEFS, tool_manager=RecordingToolManager())
+    gen, client = make_generator(
+        FakeMessage([TextBlock("hmm")], stop_reason="tool_use")
+    )
+    answer = gen.generate_response(
+        "q", tools=TOOL_DEFS, tool_manager=RecordingToolManager()
+    )
     assert len(client.messages.calls) == 1
     assert answer == "hmm"
 
@@ -220,13 +237,14 @@ def test_tool_use_stop_reason_with_no_tool_use_blocks_makes_one_call(make_genera
 def test_max_tokens_stop_reason_is_surfaced(make_generator):
     """A truncated answer must be distinguishable from a complete one."""
     gen, _ = make_generator(
-        FakeMessage([TextBlock("The lessons are: 1. Intro 2. Over")],
-                    stop_reason="max_tokens")
+        FakeMessage(
+            [TextBlock("The lessons are: 1. Intro 2. Over")], stop_reason="max_tokens"
+        )
     )
     answer = gen.generate_response("q")
-    assert answer != "The lessons are: 1. Intro 2. Over", (
-        "truncation is silently indistinguishable from a complete answer"
-    )
+    assert (
+        answer != "The lessons are: 1. Intro 2. Over"
+    ), "truncation is silently indistinguishable from a complete answer"
 
 
 def test_response_with_no_text_block_returns_a_string(make_generator):

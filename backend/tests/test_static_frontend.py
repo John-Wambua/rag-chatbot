@@ -121,10 +121,13 @@ def test_element_ids_queried_by_script_exist_in_the_markup(index_html, script_js
 def test_marked_loads_before_script_js(index_html):
     """script.js calls marked.parse() on assistant text at message time."""
     marked_at = index_html.find("marked.min.js")
-    script_at = index_html.find("script.js")
+    # Match the src attribute, not any mention of the filename: the inline
+    # pre-paint theme script carries a comment that names script.js.
+    script_match = re.search(r"""src=['"]script\.js""", index_html)
 
     assert marked_at != -1, "marked.min.js is no longer loaded"
-    assert marked_at < script_at, "script.js is loaded before marked"
+    assert script_match, "script.js is no longer loaded"
+    assert marked_at < script_match.start(), "script.js is loaded before marked"
 
 
 def test_frontend_calls_the_api_on_a_relative_path(script_js):

@@ -53,13 +53,17 @@ def test_execute_forwards_all_three_filters_to_store(search_tool, fake_store):
 
 
 def test_results_formatted_with_course_and_lesson_header(search_tool, fake_store):
-    fake_store.queue_hits(("chunk body text", {"course_title": COURSE, "lesson_number": 1}))
+    fake_store.queue_hits(
+        ("chunk body text", {"course_title": COURSE, "lesson_number": 1})
+    )
     result = search_tool.execute(query="q")
     assert result == f"[{COURSE} - Lesson 1]\nchunk body text"
 
 
 def test_chunk_without_lesson_number_omits_lesson_from_header(search_tool, fake_store):
-    fake_store.queue_hits(("orphan text", {"course_title": "Untitled Notes", "lesson_number": None}))
+    fake_store.queue_hits(
+        ("orphan text", {"course_title": "Untitled Notes", "lesson_number": None})
+    )
     result = search_tool.execute(query="q")
     assert result == "[Untitled Notes]\norphan text"
     assert "Lesson" not in result
@@ -114,8 +118,10 @@ def test_last_sources_deduped_per_lesson_in_first_seen_order(search_tool, fake_s
     fake_store.register_course(
         COURSE,
         course_link="https://example.test/cu",
-        lessons=[(0, "Introduction", "https://example.test/cu/l0"),
-                 (1, "Overview", "https://example.test/cu/l1")],
+        lessons=[
+            (0, "Introduction", "https://example.test/cu/l0"),
+            (1, "Overview", "https://example.test/cu/l1"),
+        ],
     )
     fake_store.queue_hits(
         ("a", {"course_title": COURSE, "lesson_number": 1}),
@@ -130,8 +136,12 @@ def test_last_sources_deduped_per_lesson_in_first_seen_order(search_tool, fake_s
 
 
 def test_last_sources_fall_back_to_course_link_without_lesson(search_tool, fake_store):
-    fake_store.register_course("Untitled Notes", course_link="https://example.test/notes")
-    fake_store.queue_hits(("orphan", {"course_title": "Untitled Notes", "lesson_number": None}))
+    fake_store.register_course(
+        "Untitled Notes", course_link="https://example.test/notes"
+    )
+    fake_store.queue_hits(
+        ("orphan", {"course_title": "Untitled Notes", "lesson_number": None})
+    )
     search_tool.execute(query="q")
     assert search_tool.last_sources == [
         {"text": "Untitled Notes", "link": "https://example.test/notes"}
@@ -140,7 +150,9 @@ def test_last_sources_fall_back_to_course_link_without_lesson(search_tool, fake_
 
 def test_last_sources_tolerate_a_missing_link(search_tool, fake_store):
     """The frontend renders link=None as plain text, so None must survive."""
-    fake_store.register_course(MCP, course_link=None, lessons=[(2, "Creating a server", None)])
+    fake_store.register_course(
+        MCP, course_link=None, lessons=[(2, "Creating a server", None)]
+    )
     fake_store.queue_hits(("x", {"course_title": MCP, "lesson_number": 2}))
     search_tool.execute(query="q")
     assert search_tool.last_sources == [{"text": f"{MCP} - Lesson 2", "link": None}]
@@ -152,10 +164,16 @@ def test_two_searches_accumulate_citations(search_tool, fake_store):
     ToolManager.get_last_sources' own docstring promises not to drop any tool's
     citations, and SYSTEM_PROMPT invites several calls per round.
     """
-    fake_store.register_course(COURSE, course_link="https://example.test/cu",
-                               lessons=[(0, "Introduction", "https://example.test/cu/l0")])
-    fake_store.register_course(MCP, course_link="https://example.test/mcp",
-                               lessons=[(0, "Why MCP", "https://example.test/mcp/l0")])
+    fake_store.register_course(
+        COURSE,
+        course_link="https://example.test/cu",
+        lessons=[(0, "Introduction", "https://example.test/cu/l0")],
+    )
+    fake_store.register_course(
+        MCP,
+        course_link="https://example.test/mcp",
+        lessons=[(0, "Why MCP", "https://example.test/mcp/l0")],
+    )
     fake_store.queue_hits(("a", {"course_title": COURSE, "lesson_number": 0}))
     fake_store.queue_hits(("b", {"course_title": MCP, "lesson_number": 0}))
 
@@ -172,8 +190,11 @@ def test_error_path_adds_no_citation_but_keeps_earlier_ones(search_tool, fake_st
     Citations accumulate across calls within one round; ToolManager.reset_sources
     clears them between rounds.
     """
-    fake_store.register_course(COURSE, course_link="https://example.test/cu",
-                               lessons=[(0, "Introduction", "https://example.test/cu/l0")])
+    fake_store.register_course(
+        COURSE,
+        course_link="https://example.test/cu",
+        lessons=[(0, "Introduction", "https://example.test/cu/l0")],
+    )
     fake_store.queue_hits(("a", {"course_title": COURSE, "lesson_number": 0}))
     fake_store.queue_error("Search error: boom")
 
@@ -195,8 +216,10 @@ def test_outline_lists_every_lesson_including_lesson_zero(outline_tool, fake_sto
         MCP,
         course_link="https://example.test/mcp",
         instructor="Elie Schoppik",
-        lessons=[(0, "Why MCP", "https://example.test/mcp/l0"),
-                 (2, "Creating a server", None)],
+        lessons=[
+            (0, "Why MCP", "https://example.test/mcp/l0"),
+            (2, "Creating a server", None),
+        ],
     )
     result = outline_tool.execute(course_title="MCP")
     assert result == (
@@ -210,16 +233,21 @@ def test_outline_lists_every_lesson_including_lesson_zero(outline_tool, fake_sto
 
 
 def test_outline_omits_instructor_line_when_absent(outline_tool, fake_store):
-    fake_store.register_course("Untitled Notes", course_link=None, instructor=None,
-                               lessons=[(0, "Only lesson", None)])
+    fake_store.register_course(
+        "Untitled Notes",
+        course_link=None,
+        instructor=None,
+        lessons=[(0, "Only lesson", None)],
+    )
     result = outline_tool.execute(course_title="Untitled Notes")
     assert "Instructor:" not in result
     assert "Course link: not available" in result
 
 
 def test_outline_cites_the_course_page(outline_tool, fake_store):
-    fake_store.register_course(MCP, course_link="https://example.test/mcp",
-                               lessons=[(0, "Why MCP", None)])
+    fake_store.register_course(
+        MCP, course_link="https://example.test/mcp", lessons=[(0, "Why MCP", None)]
+    )
     outline_tool.execute(course_title="MCP")
     assert outline_tool.last_sources == [
         {"text": MCP, "link": "https://example.test/mcp"}
@@ -240,8 +268,9 @@ def test_outline_of_course_without_lessons(outline_tool, fake_store):
 
 def test_outline_miss_after_a_hit_keeps_the_hit_citation(outline_tool, fake_store):
     """A miss adds no citation and does not erase the successful lookup's."""
-    fake_store.register_course(MCP, course_link="https://example.test/mcp",
-                               lessons=[(0, "Why MCP", None)])
+    fake_store.register_course(
+        MCP, course_link="https://example.test/mcp", lessons=[(0, "Why MCP", None)]
+    )
     outline_tool.execute(course_title="MCP")
     outline_tool.execute(course_title="Underwater Basket Weaving")
     assert outline_tool.last_sources == [

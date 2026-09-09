@@ -6,7 +6,6 @@ and the citation lifecycle are genuinely under test.
 """
 
 import pytest
-
 from conftest import FakeMessage, TextBlock, ToolUseBlock, script
 
 COURSE = "Building Toward Computer Use with Anthropic"
@@ -52,11 +51,15 @@ def test_query_wraps_question_and_offers_both_tools(rag):
 def test_content_query_returns_answer_and_search_citations(rag):
     system, store, client = rag
     _seed(store)
-    store.queue_hits(("chunk about tool use", {"course_title": COURSE, "lesson_number": 0}))
+    store.queue_hits(
+        ("chunk about tool use", {"course_title": COURSE, "lesson_number": 0})
+    )
     script(
         client,
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "tool use"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "tool use"})],
+            stop_reason="tool_use",
+        ),
         FakeMessage([TextBlock("Tool use lets Claude call functions.")]),
     )
 
@@ -85,8 +88,10 @@ def test_outline_query_returns_course_level_citation(rag):
     _seed(store)
     script(
         client,
-        FakeMessage([ToolUseBlock("get_course_outline", {"course_title": "MCP"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("get_course_outline", {"course_title": "MCP"})],
+            stop_reason="tool_use",
+        ),
         FakeMessage([TextBlock("The MCP course has 1 lesson.")]),
     )
 
@@ -101,8 +106,10 @@ def test_sources_are_reset_between_successive_queries(rag):
     store.queue_hits(("a", {"course_title": COURSE, "lesson_number": 0}))
     script(
         client,
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "x"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "x"})],
+            stop_reason="tool_use",
+        ),
         FakeMessage([TextBlock("first")]),
         FakeMessage([TextBlock("second")]),
     )
@@ -121,8 +128,10 @@ def test_stale_sources_do_not_leak_after_a_failed_query(rag):
     store.queue_hits(("secret chunk", {"course_title": COURSE, "lesson_number": 0}))
     script(
         client,
-        FakeMessage([ToolUseBlock("search_course_content", {"query": "secrets"})],
-                    stop_reason="tool_use"),
+        FakeMessage(
+            [ToolUseBlock("search_course_content", {"query": "secrets"})],
+            stop_reason="tool_use",
+        ),
         RuntimeError("overloaded"),
         FakeMessage([TextBlock("Paris is the capital.")]),
     )
@@ -145,10 +154,16 @@ def test_two_searches_in_one_round_yield_both_citations(rag):
         client,
         FakeMessage(
             [
-                ToolUseBlock("search_course_content", {"query": "a", "course_name": COURSE},
-                             id="toolu_01"),
-                ToolUseBlock("search_course_content", {"query": "b", "course_name": MCP},
-                             id="toolu_02"),
+                ToolUseBlock(
+                    "search_course_content",
+                    {"query": "a", "course_name": COURSE},
+                    id="toolu_01",
+                ),
+                ToolUseBlock(
+                    "search_course_content",
+                    {"query": "b", "course_name": MCP},
+                    id="toolu_02",
+                ),
             ],
             stop_reason="tool_use",
         ),

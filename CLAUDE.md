@@ -8,6 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync                                              # install dependencies
 ./run.sh                                             # start the app (chmod +x first if needed)
 cd backend && uv run uvicorn app:app --reload --port 8000   # manual start, equivalent
+
+./scripts/format.sh                                  # rewrite all sources in place
+./scripts/lint.sh                                    # check formatting only, non-zero exit if dirty
+./scripts/test.sh                                    # pytest (args forwarded, e.g. -k search_tools)
+./scripts/quality.sh                                 # lint.sh + test.sh — run before committing
 ```
 
 Web UI at http://localhost:8000, OpenAPI docs at http://localhost:8000/docs.
@@ -16,7 +21,9 @@ Requires `ANTHROPIC_API_KEY` in a root `.env` (see `.env.example`). Python ≥3.
 
 **Always use `uv`. Never use `pip`.** Run the server with `uv run uvicorn ...` (or `./run.sh`, which wraps it) — never a bare `uvicorn`, `python`, or `python -m`. Install and change dependencies with `uv sync` / `uv add`, never `pip install`. Dependencies are locked in `uv.lock`; `pip` bypasses that lock and the project venv.
 
-There is no test suite, linter, or formatter configured. If you add tests, `uv add --dev pytest` first so the lockfile stays authoritative, and run them with `uv run pytest`.
+**Formatting is enforced, not optional.** Prettier owns `frontend/` (HTML/CSS/JS, pinned to 3.6.2 and run through `npx`, so Node is needed for the front-end half); black + isort own the Python. Config lives in `.prettierrc.json` and the `[tool.black]` / `[tool.isort]` tables of `pyproject.toml`. Run `./scripts/format.sh` after editing anything and `./scripts/quality.sh` before committing. The scripts skip Prettier with a warning if `npx` is missing rather than failing.
+
+Tests are pytest (`backend/tests/`, config in `[tool.pytest.ini_options]`). Add dev tooling with `uv add --dev ...` so the lockfile stays authoritative.
 
 **The server must run with `backend/` as the working directory.** Two paths depend on it: `CHROMA_PATH = "./chroma_db"` (`backend/config.py`) and the startup ingest of `"../docs"` (`backend/app.py`). Running uvicorn from the repo root silently creates a second, empty ChromaDB and loads no courses.
 
