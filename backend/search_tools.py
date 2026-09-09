@@ -126,6 +126,73 @@ class CourseSearchTool(Tool):
             "link": self.store.get_course_link(course_title)
         }
 
+class CourseOutlineTool(Tool):
+    """Tool for retrieving a course's structure from the catalog metadata"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []  # Track sources from last lookup
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "get_course_outline",
+            "description": "Get the outline of a course: its title, link, and the complete list of lessons with their numbers and titles. Use this for questions about a course's structure or what it covers, instead of searching its content",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_title": {
+                        "type": "string",
+                        "description": "Course title (partial matches work, e.g. 'MCP', 'Computer Use')"
+                    }
+                },
+                "required": ["course_title"]
+            }
+        }
+
+    def execute(self, course_title: str) -> str:
+        """
+        Look up a course outline.
+
+        Args:
+            course_title: Course title or fragment to resolve
+
+        Returns:
+            Formatted outline or a message explaining why there isn't one
+        """
+
+        outline = self.store.get_course_outline(course_title)
+
+        # A miss is text for Claude to paraphrase, not an exception
+        if not outline:
+            return f"No course found matching '{course_title}'."
+
+        title = outline["title"]
+        lessons = outline["lessons"]
+
+        # Cite the course page itself - the outline is course-level, not lesson-level
+        self.last_sources = [{"text": title, "link": outline["course_link"]}]
+
+        if not lessons:
+            return f"Course: {title}\nNo lessons are recorded for this course."
+
+        return self._format_outline(outline)
+
+    def _format_outline(self, outline: Dict[str, Any]) -> str:
+        """Render the outline as plain text for Claude to read"""
+        lessons = outline["lessons"]
+
+        lines = [f"Course: {outline['title']}"]
+        lines.append(f"Course link: {outline['course_link'] or 'not available'}")
+        if outline["instructor"]:
+            lines.append(f"Instructor: {outline['instructor']}")
+
+        lines.append(f"Lessons ({len(lessons)}):")
+        for lesson in lessons:
+            lines.append(f"Lesson {lesson.get('lesson_number')}: {lesson.get('lesson_title')}")
+
+        return "\n".join(lines)
+
 class ToolManager:
     """Manages available tools for the AI"""
     
@@ -153,12 +220,13 @@ class ToolManager:
         return self.tools[tool_name].execute(**kwargs)
     
     def get_last_sources(self) -> list:
-        """Get sources from the last search operation"""
-        # Check all tools for last_sources attribute
+        """Collect sources from every tool used in the last round, in registration order"""
+        sources = []
+        # Claude can call several tools in one turn - don't drop any tool's citations
         for tool in self.tools.values():
-            if hasattr(tool, 'last_sources') and tool.last_sources:
-                return tool.last_sources
-        return []
+            if hasattr(tool, 'last_sources'):
+                sources.extend(tool.last_sources)
+        return sources
 
     def reset_sources(self):
         """Reset sources from all tools that track sources"""

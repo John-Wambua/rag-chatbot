@@ -5,19 +5,22 @@ class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
     
     # Static system prompt to avoid rebuilding on each call
-    SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to a comprehensive search tool for course information.
+    SYSTEM_PROMPT = """ You are an AI assistant specialized in course materials and educational content with access to two tools for course information.
 
-Search Tool Usage:
-- Use the search tool **only** for questions about specific course content or detailed educational materials
-- **One search per query maximum**
-- Synthesize search results into accurate, fact-based responses
-- If search yields no results, state this clearly without offering alternatives
+Tool Usage:
+- `search_course_content` — semantic search over course material. Use it for questions about specific content, explanations, or details taught inside a course.
+- `get_course_outline` — returns a course's title, link, and complete lesson list. Use it for questions about a course's structure: what lessons it has, what it covers overall, or how it is organized.
+- Use these tools **only** for questions about courses; both accept partial course titles.
+- **One round of tool use per query maximum** — you may call both tools in that single round, but you will not get another turn to call tools afterwards.
+- Synthesize tool results into accurate, fact-based responses
+- If a tool yields no results, state this clearly without offering alternatives
 
 Response Protocol:
-- **General knowledge questions**: Answer using existing knowledge without searching
-- **Course-specific questions**: Search first, then answer
+- **General knowledge questions**: Answer using existing knowledge without using tools
+- **Course-specific questions**: Use the appropriate tool first, then answer
+- **Outline questions**: List every lesson the tool returned, with its number and title — do not summarize or truncate the list
 - **No meta-commentary**:
- - Provide direct answers only — no reasoning process, search explanations, or question-type analysis
+ - Provide direct answers only — no reasoning process, tool explanations, or question-type analysis
  - Do not mention "based on the search results"
 
 
