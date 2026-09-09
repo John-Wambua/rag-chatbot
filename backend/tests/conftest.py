@@ -498,3 +498,41 @@ def api(app_module, monkeypatch):
     fake = FakeRAGSystem()
     monkeypatch.setattr(app_module, "rag_system", fake)
     return TestClient(app_module.app), fake
+
+
+# --------------------------------------------------------------------------
+# Frontend / static-mount tier
+# --------------------------------------------------------------------------
+
+FRONTEND = BACKEND.parent / "frontend"
+
+
+@pytest.fixture(scope="session")
+def frontend_dir():
+    return FRONTEND
+
+
+@pytest.fixture(scope="session")
+def index_html():
+    return (FRONTEND / "index.html").read_text(encoding="utf-8")
+
+
+@pytest.fixture(scope="session")
+def script_js():
+    return (FRONTEND / "script.js").read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def frontend_client(app_module, monkeypatch):
+    """TestClient whose static mount can actually resolve files off disk.
+
+    app.py mounts StaticFiles(directory="../frontend"). That relative path is
+    validated once at import time (``app_module`` chdirs into backend/ for
+    that) but resolved *again* on every request, against the cwd at request
+    time. So the requests have to run from backend/ too, or every asset 404s.
+    """
+    from starlette.testclient import TestClient
+
+    monkeypatch.setattr(app_module, "rag_system", FakeRAGSystem())
+    monkeypatch.chdir(BACKEND)
+    return TestClient(app_module.app)

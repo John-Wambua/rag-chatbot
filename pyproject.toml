@@ -23,7 +23,15 @@ dev = [
 [tool.pytest.ini_options]
 pythonpath = ["backend"]
 testpaths = ["backend/tests"]
-addopts = "-q --strict-markers"
+addopts = "-q -ra --strict-markers --strict-config"
 markers = [
     "integration: drives a real ChromaDB in tmp_path with a stub embedder",
+    "frontend: exercises the static mount at / and the frontend/ wiring",
+]
+filterwarnings = [
+    "default",
+    # chromadb/torch drag in a lot of third-party deprecation noise that no
+    # change in this repo can fix. app.py's own on_event warning stays visible.
+    "ignore::DeprecationWarning:pkg_resources",
+    "ignore:builtin type (SwigPyPacked|SwigPyObject|swigvarlink) has no __module__:DeprecationWarning",
 ]
